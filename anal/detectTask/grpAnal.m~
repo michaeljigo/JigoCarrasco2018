@@ -1,0 +1,71 @@
+% Concatenates and plots the average performance across subjects
+
+function grpAnal(expName)
+
+% where subject results are stored
+groupDir = ['../data/group/',expName,'/'];
+subj = dir ([groupDir,'*.mat']);
+
+% get subject initials to make sure correct subjects are being used in
+% group analysis
+subjNames = arrayfun(@(x) x.name(1:strfind(x.name,'.')-1), subj,...
+    'UniformOutput',false);
+% display subject names
+disp('%%%%% Subjects %%%%%');
+cellfun(@(x) fprintf('%s \n',x),subjNames);
+
+% loop through subjects and load data
+for s = 1:length(subj)
+    load([groupDir,subj(s).name]);
+    rawHit(s,:,:,:) = hit.perf;
+    rawFA(s,:) = fa.perf;
+    rawRT(s,:,:,:) = rt.perf;
+    % normalize dPrime to the maximum dPrime value across cues (this will
+    % hopefully make comparisons between subjects with different overall
+    % levels of performance easier)
+    
+    rawDPrime(s,:,:,:) = dPrime;
+end
+% save condition labels
+cues = hit.factorLabels.factor1;
+ecc = cellfun(@(x) str2num(x),hit.factorLabels.factor2);
+
+% average across subjects
+grpHit = squeeze(mean(rawHit,1));
+grpFA = mean(rawFA,1);
+grpRT = squeeze(mean(rawRT));
+
+% plot behavior
+% D PRIME
+figure('Name','Sensitivity');
+lineCol = 'kr';
+for i = 1:size(grpHit,1)
+    y = norminv(grpHit(i,:))-norminv(grpFA(i));
+    plot(ecc,y,[lineCol(i),'.']); hold on
+%     [~,~,out] = doRegression(ecc,y,3);
+    plotLine(i) = plot(ecc,y,[lineCol(i),'-']);
+    [~,eccPeakPerf(i)] = max(y);
+end
+set(gca,'XLim',[-0.1 8]);
+ylabel('d prime');
+xlabel('eccentricity');
+legend(plotLine,cues);
+
+% RT
+figure('Name','RT');
+for i = 1:size(grpRT,1)
+    plot(ecc,grpRT(i,:),[lineCol(i),'.']); hold on
+    plotLine(i) = plot(ecc,grpRT(i,:),[lineCol(i),'-']);
+end
+set(gca,'XLim',[-0.1 8]);
+ylabel('RT');
+xlabel('eccentricity');
+legend(plotLine,cues);
+
+% FA
+figure('Name','False alarms');
+h = bar(grpFA);
+set(h,'FaceColor','k');
+set(h,'EdgeColor','k');
+set(gca,'XTickLabel',cues);
+ylabel('false alarm');
